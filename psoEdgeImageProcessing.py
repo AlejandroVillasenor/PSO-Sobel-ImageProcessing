@@ -2,31 +2,6 @@ import cv2
 import numpy as np
 import pywt
 
-# Función para aplicar DWT y descomponer la imagen en subbandas
-def dwt_decomposition(image):
-    coeffs = pywt.dwt2(image, 'haar')
-    LL, (LH, HL, HH) = coeffs
-    return LL, LH, HL, HH, coeffs
-
-# Función objetivo basada en la magnitud del gradiente
-def objective_function(particle_position, subband):
-    i, j = particle_position.astype(int)
-    gradient_magnitude = subband[i, j]
-    
-    # Derivadas de píxeles vecinos (clusters locales)
-    neighbors = [
-        (i-1, j-1), (i-1, j), (i-1, j+1),
-        (i, j-1),           (i, j+1),
-        (i+1, j-1), (i+1, j), (i+1, j+1)
-    ]
-    
-    local_gradient = 0
-    for ni, nj in neighbors:
-        if 0 <= ni < subband.shape[0] and 0 <= nj < subband.shape[1]:
-            local_gradient += abs(gradient_magnitude - subband[ni, nj])
-    
-    return local_gradient  # Maximizar la diferencia en el cluster
-
 # Clase para las partículas en PSO
 class Particle:
     def __init__(self, subband):
@@ -54,6 +29,31 @@ class Particle:
             self.best_position = self.position.copy()
             self.best_value = current_value
 
+# Función objetivo basada en la magnitud del gradiente
+def objective_function(particle_position, subband):
+    i, j = particle_position.astype(int)
+    gradient_magnitude = subband[i, j]
+    
+    # Derivadas de píxeles vecinos (clusters locales)
+    neighbors = [
+        (i-1, j-1), (i-1, j), (i-1, j+1),
+        (i, j-1),           (i, j+1),
+        (i+1, j-1), (i+1, j), (i+1, j+1)
+    ]
+    
+    local_gradient = 0
+    for ni, nj in neighbors:
+        if 0 <= ni < subband.shape[0] and 0 <= nj < subband.shape[1]:
+            local_gradient += abs(gradient_magnitude - subband[ni, nj])
+    
+    return local_gradient  # Maximizar la diferencia en el cluster
+
+# Función para aplicar DWT y descomponer la imagen en subbandas
+def dwt_decomposition(image):
+    coeffs = pywt.dwt2(image, 'haar')
+    LL, (LH, HL, HH) = coeffs
+    return LL, LH, HL, HH, coeffs
+
 # PSO aplicado en cada subbanda de la imagen
 def pso_on_subband(subband, num_particles=15, iterations=50):
     particles = [Particle(subband) for _ in range(num_particles)]
@@ -72,7 +72,7 @@ def pso_on_subband(subband, num_particles=15, iterations=50):
 
     return particles, global_best_position
 
-# Función de umbralización automática (Ej: Umbral de Otsu)
+# Función de umbralización automática
 def automatic_thresholding(image):
     # Convertir la imagen de flotante a uint8
     image_scaled = np.uint8(255 * (image - np.min(image)) / (np.max(image) - np.min(image)))
@@ -143,6 +143,7 @@ cv2.destroyAllWindows()
 # Guardar la imagen con los bordes detectados
 cv2.imwrite('bordes_detectados_dwt_pso.png', imagen_bordes_pso)
 cv2.imwrite('bordes_detectados_sobel.png', imagen_bordes_sobel)
+
 
 #--- Metricas de calidad entre las imagenes ---
 def mse(imageA, imageB):
