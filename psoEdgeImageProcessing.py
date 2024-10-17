@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import pywt
+import matplotlib.pyplot as plt
 
 # Clase para las partículas en PSO
 class Particle:
@@ -55,20 +56,35 @@ def dwt_decomposition(image):
     return LL, LH, HL, HH, coeffs
 
 # PSO aplicado en cada subbanda de la imagen
-def pso_on_subband(subband, num_particles=15, iterations=50):
+def pso_on_subband(subband, subband_name, num_particles=30, iterations=100):
     particles = [Particle(subband) for _ in range(num_particles)]
     global_best_position = particles[0].best_position.copy()
     global_best_value = particles[0].best_value
 
+    # Lista para almacenar el progreso del valor global óptimo
+    global_best_progress = []
+
     for i in range(iterations):
         for particle in particles:
-            particle.update_velocity(global_best_position, 0.5, 2.0, 2.0)
+            # Ajustes en los parámetros de PSO: w = 0.4, c1 = 2.5, c2 = 2.5
+            particle.update_velocity(global_best_position, w=0.4, c1=2.5, c2=2.5)
             particle.update_position(subband)
 
             if particle.best_value > global_best_value:
                 global_best_position = particle.best_position.copy()
                 global_best_value = particle.best_value
-        print("Iteracion ",i,global_best_value)
+        
+        # Almacenar el valor global óptimo actual
+        global_best_progress.append(global_best_value)
+        print(f"Iteración {i}, Valor global óptimo: {global_best_value}")
+
+    # Graficar el progreso del valor global óptimo con el nombre de la subbanda
+    plt.plot(global_best_progress)
+    plt.title(f"Progreso del valor global óptimo durante PSO en {subband_name}")
+    plt.xlabel("Iteraciones")
+    plt.ylabel("Valor del mejor global")
+    plt.grid()
+    plt.show()
 
     return particles, global_best_position
 
@@ -86,10 +102,11 @@ def edge_detection_with_dwt_pso(image):
     LL, LH, HL, HH, coeffs = dwt_decomposition(image)
 
     # Aplicar PSO a cada subbanda
-    _, best_LL = pso_on_subband(HH)
-    _, best_LH = pso_on_subband(LH)
-    _, best_HL = pso_on_subband(HL)
-    _, best_HH = pso_on_subband(HH)
+    _, best_LL = pso_on_subband(HH, "Subbanda LL")
+    _, best_LH = pso_on_subband(LH, "Subbanda LH")
+    _, best_HL = pso_on_subband(HL, "Subbanda HL")
+    _, best_HH = pso_on_subband(HH, "Subbanda HH")
+
 
     # Crear imágenes con bordes optimizados en las subbandas
     edges_LL = np.zeros_like(LL)
@@ -111,7 +128,8 @@ def edge_detection_with_dwt_pso(image):
     return final_edges
 
 # Cargar la imagen de entrada en escala de grises
-imagen_original= cv2.imread('/home/rodrigovr/workspace/PSO-Sobel-ImageProcessing/Lenna.png', cv2.IMREAD_GRAYSCALE)
+img= cv2.imread('C:/Users/escob/OneDrive/Escritorio/CAC/images/McLarenW1.jpg', cv2.IMREAD_GRAYSCALE)
+imagen_original = cv2.GaussianBlur(img, (9, 9), 0) 
 
 # Aplicar la detección de bordes con DWT y PSO
 print("DWT CON PSO".center(50,'-'))
